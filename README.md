@@ -25,8 +25,8 @@ app/
   loader.py
   main.py
   rag.py
-  logging/
-  Models/
+  logers/
+  models/
 files/
 logs/
 vector_store/

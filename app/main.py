@@ -1,4 +1,4 @@
-from .logging.SQLiteLogger import SQLiteLogger
+from .loggers.SQLiteLogger import SQLiteLogger
 from .rag import RAG
 
 def main():

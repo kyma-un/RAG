@@ -1,12 +1,20 @@
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 
-from .rag import RAG
-from .logging.SQLiteLogger import SQLiteLogger
+from fastapi.middleware.cors import CORSMiddleware
 
-from .loader import load_pdf
+from .rag import RAG
+from .loggers.SQLiteLogger import SQLiteLogger
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:4200"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 #Inicializar el logger y el RAG
 logger = SQLiteLogger() #Se puede cambiar luego a PostgreSQLLogger
@@ -25,18 +33,14 @@ def ask(request: QueryRequest):
     result = rag.query(request.question)
     return result
 
-@app.post("/ingest")
+@app.post("/documents/upload")
 async def ingest(file:UploadFile = File(...)):
-    if file.content_type != "application/pdf":
-        return {"error" : "solo se permiten archivos pdf"}
-
-    temp_path = f"./files/temp_{file.filename}"
-    with open(temp_path, "wb") as f:
-        f.write(await file.read())
+    return await rag.ingest(file)
     
-    docs = load_pdf(temp_path)
-
-    rag.ingest(docs)
-
-    return {"status": "ok", "message": f"{file.filename} agregado al vector store"}
+@app.get("/documents")
+def list_documents():
+    return {
+        "status": "200",
+        "documents": rag.getDocuments()
+    }
     
