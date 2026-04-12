@@ -26,16 +26,28 @@ class SQLiteLogger(BaseLogger):
                 context_length INTEGER,
                 num_sources INTEGER,
                 response_time REAL,
-                sources TEXT
+                sources TEXT,
+                mode TEXT,
+                selected_sources TEXT
             )
         ''')
+        self._ensure_column(cursor, "logs", "mode", "TEXT")
+        self._ensure_column(cursor, "logs", "selected_sources", "TEXT")
         self.conn.commit()
+
+    def _ensure_column(self, cursor, table_name: str, column_name: str, column_type: str):
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = [row[1] for row in cursor.fetchall()]
+        if column_name not in columns:
+            cursor.execute(
+                f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+            )
 
     def log_query(self, log_data: dict):
         cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT INTO logs (timestamp, question, answer, context_length, num_sources, response_time, sources)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO logs (timestamp, question, answer, context_length, num_sources, response_time, sources, mode, selected_sources)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             datetime.now().isoformat(),
             log_data.get("question", ""),
@@ -43,6 +55,8 @@ class SQLiteLogger(BaseLogger):
             log_data.get("context_length", 0),
             log_data.get("num_sources", 0),
             log_data.get("response_time", 0.0),
-            json.dumps(log_data.get("sources", []))
+            json.dumps(log_data.get("sources", [])),
+            log_data.get("mode", "manual"),
+            json.dumps(log_data.get("selected_sources", []))
         ))
         self.conn.commit()

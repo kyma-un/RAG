@@ -158,6 +158,72 @@ streamlit run app/dashboard.py
 - FAISS se carga con `allow_dangerous_deserialization=True` porque se asume que el `vector_store` es local y de confianza.
 - Si usas Ollama, asegurate de tener el servicio corriendo localmente.
 
+## Capacidades multi-fuente
+
+La API ahora soporta consultas por fuentes multiples y modo auto (placeholder para agente/MCP).
+
+### Variables opcionales
+
+```env
+OBSIDIAN_VAULT_DIR=files/obsidian
+PDF_DIR=files/pdfs
+VECTOR_STORE_PATH=vector_store
+RAG_CHUNK_SIZE=1000
+RAG_CHUNK_OVERLAP=200
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+```
+
+### Endpoints nuevos
+
+- `POST /documents/ingest-sources`
+  - Ingesta por fuente (`obsidian`, `pdf`, o `all`)
+  - Ejemplo body:
+
+```json
+{
+  "sources": ["obsidian", "pdf"]
+}
+```
+
+- `GET /sources`
+  - Retorna fuentes soportadas e indexadas.
+
+### Endpoint /ask extendido
+
+`POST /ask` ahora acepta:
+
+```json
+{
+  "question": "Que notas hablan de arquitectura?",
+  "mode": "manual",
+  "sources": ["obsidian"],
+  "k": 5
+}
+```
+
+- `mode=manual`: usa `sources` (si `sources` es `null` o contiene `all`, consulta todas).
+- `mode=auto`: placeholder para enrutamiento por agente/MCP (actualmente consulta todas).
+
+Hook para MCP:
+- El punto de extension para enrutamiento automatico de fuentes esta en [rag/query/mcp_router.py](rag/query/mcp_router.py).
+- [rag/query/handler.py](rag/query/handler.py) inyecta el router y aplica el resultado como filtro de retrieval.
+
+### Registry de fuentes
+
+- El registro central vive en [rag/sources/registry.py](rag/sources/registry.py).
+- [app/rag.py](app/rag.py) usa ese registro para:
+  - listar fuentes soportadas
+  - resolver seleccion de fuentes en `/documents/ingest-sources`
+  - instanciar fuentes sin `if/else` por cada tipo
+
+Para agregar una nueva fuente:
+
+1. Crear una clase en `rag/sources/` que implemente `DataSource`.
+2. Registrar la clase en `build_default_source_registry()` dentro de [rag/sources/registry.py](rag/sources/registry.py).
+3. Asegurar que la metadata incluya `source` con el nombre registrado.
+
+Con eso, la fuente ya queda disponible en `/sources`, en consultas manuales y en ingesta por fuentes, sin tocar endpoints.
+
 ## Troubleshooting rapido
 
 - Error `No vector store found`: ingesta primero un PDF en `/ingest`.
