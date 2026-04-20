@@ -1,6 +1,7 @@
 import os
 from typing import Optional
 
+from .AzureOpenAILLM import AzureOpenAILLM
 from .BaseLLM import BaseLLM
 from .GeminiLLM import GeminiLLM
 from .OllamaLLM import OllamaLLM
@@ -48,6 +49,8 @@ def _build_provider(provider: str) -> BaseLLM:
     normalized = (provider or "").strip().lower()
 
     match normalized:
+        case "azure_openai":
+            return AzureOpenAILLM()
         case "gemini":
             return GeminiLLM()
         case "ollama":

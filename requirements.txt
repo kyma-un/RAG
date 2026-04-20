@@ -9,6 +9,7 @@ faiss-cpu
 sentence-transformers
 python-dotenv
 google-genai
+openai
 ollama
 pypdf
 streamlit

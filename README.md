@@ -14,7 +14,7 @@ Sistema RAG (Retrieval-Augmented Generation) para consultar documentos PDF, con:
 - Sentence Transformers (`all-MiniLM-L6-v2`)
 - SQLite
 - Streamlit (dashboard)
-- LLM configurable: Ollama o Gemini
+- LLM configurable: Ollama, Gemini o Azure OpenAI
 
 ## Despliegue con Docker Compose
 
@@ -145,7 +145,7 @@ python -m venv venv
 ```powershell
 pip install fastapi uvicorn pydantic python-multipart
 pip install langchain-community langchain-text-splitters faiss-cpu sentence-transformers
-pip install python-dotenv google-genai ollama pypdf
+pip install python-dotenv google-genai openai ollama pypdf
 pip install streamlit pandas matplotlib wordcloud
 ```
 
@@ -198,6 +198,28 @@ ollama run llama3 "Hola, responde en una linea"
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=tu_api_key
 GEMINI_MODEL=gemini-2.0-flash
+```
+
+### Opcion C: Azure OpenAI
+
+```env
+LLM_PROVIDER=azure_openai
+AZURE_OPENAI_ENDPOINT=https://tu-recurso.openai.azure.com
+AZURE_OPENAI_API_KEY=tu_azure_openai_api_key
+AZURE_OPENAI_API_VERSION=2024-02-01
+AZURE_OPENAI_CHAT_DEPLOYMENT=gpt-4o-mini
+AZURE_OPENAI_TEMPERATURE=0.2
+```
+
+Tambien puedes usar Azure OpenAI como fallback:
+
+```env
+LLM_PROVIDER=ollama
+LLM_FALLBACK_PROVIDER=azure_openai
+AZURE_OPENAI_ENDPOINT=https://tu-recurso.openai.azure.com
+AZURE_OPENAI_API_KEY=tu_azure_openai_api_key
+AZURE_OPENAI_API_VERSION=2024-02-01
+AZURE_OPENAI_CHAT_DEPLOYMENT=gpt-4o-mini
 ```
 
 ## 5. Ejecutar la API
