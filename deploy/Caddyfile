@@ -2,7 +2,7 @@
   auto_https disable_redirects
 }
 
-{$DOMAIN:localhost} {
+http://{$DOMAIN:localhost}, https://{$DOMAIN:localhost} {
   encode gzip
 
   handle_path /api/* {
