@@ -52,6 +52,18 @@ CORS_ALLOW_ORIGINS=http://chatbot.lab.local,https://chatbot.lab.local
 
 ### 2. Levantar stack
 
+Si tu frontend esta en otro repo, construye su imagen y etiquetala antes de levantar el stack:
+
+```powershell
+docker build -t chatbot-frontend:local <RUTA_AL_REPO_FRONTEND>
+```
+
+Luego define en `deploy/.env.deploy`:
+
+```env
+FRONTEND_IMAGE=chatbot-frontend:local
+```
+
 Con Ollama local en Docker:
 
 ```powershell
@@ -85,6 +97,7 @@ Si no tienes DNS, agrega entrada en `hosts` de tu cliente:
 - Frontend: `http://chatbot.lab.local/`
 - API RAG: `http://chatbot.lab.local/api`
 - Swagger: `http://chatbot.lab.local/api/docs`
+- Dashboard (si usas perfil `dashboard`): `http://chatbot.lab.local/dashboard/`
 
 ### 5. Persistencia
 

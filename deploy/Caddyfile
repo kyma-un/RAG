@@ -9,8 +9,16 @@
     reverse_proxy rag-api:8000
   }
 
+  handle_path /dashboard/* {
+    reverse_proxy rag-dashboard:8501
+  }
+
   handle /api {
     redir /api/ 308
+  }
+
+  handle /dashboard {
+    redir /dashboard/ 308
   }
 
   handle {
