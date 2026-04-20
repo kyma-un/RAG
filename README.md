@@ -16,6 +16,30 @@ Sistema RAG (Retrieval-Augmented Generation) para consultar documentos PDF, con:
 - Streamlit (dashboard)
 - LLM configurable: Ollama, Gemini o Azure OpenAI
 
+## Guia rapida
+
+- Flujo completo Back-First (Back + Front) en Docker: [GUIA_BACK_FRONT_DOCKER.md](GUIA_BACK_FRONT_DOCKER.md)
+
+## Ruta recomendada (Back-First)
+
+El flujo recomendado para este proyecto es:
+
+1. Levantar y validar primero el backend (API + proxy + LLM).
+2. Integrar despues la imagen real del frontend.
+
+Secuencia minima sugerida:
+
+1. Copia [\.env.example](.env.example) a `.env` y define proveedor LLM.
+2. Copia [deploy/.env.deploy.example](deploy/.env.deploy.example) a `deploy/.env.deploy`.
+3. Para fase backend-first, usa frontend placeholder:
+
+```env
+FRONTEND_IMAGE=nginx:stable-alpine
+```
+
+4. Levanta stack y valida `http://<dominio>/api/docs`.
+5. Construye tu imagen real de frontend (repo separado), actualiza `FRONTEND_IMAGE` y redeploy.
+
 ## Despliegue con Docker Compose
 
 Este repositorio ahora incluye artefactos para despliegue en servidor local:
@@ -52,6 +76,35 @@ CORS_ALLOW_ORIGINS=http://chatbot.lab.local,https://chatbot.lab.local
 
 ### 2. Levantar stack
 
+#### 2A. Fase Back-First (primero backend)
+
+Si aun no tienes imagen de frontend lista, usa un placeholder temporal en `deploy/.env.deploy`:
+
+```env
+FRONTEND_IMAGE=nginx:stable-alpine
+```
+
+Luego levanta backend + proxy:
+
+Con Ollama local en Docker:
+
+```powershell
+docker compose --env-file deploy/.env.deploy --profile ollama up -d --build
+```
+
+Con Gemini o Azure OpenAI (sin Ollama):
+
+```powershell
+docker compose --env-file deploy/.env.deploy up -d --build
+```
+
+Valida primero backend:
+
+- `http://chatbot.lab.local/api`
+- `http://chatbot.lab.local/api/docs`
+
+#### 2B. Integrar frontend real
+
 Si tu frontend esta en otro repo, construye su imagen y etiquetala antes de levantar el stack:
 
 ```powershell
@@ -64,16 +117,10 @@ Luego define en `deploy/.env.deploy`:
 FRONTEND_IMAGE=chatbot-frontend:local
 ```
 
-Con Ollama local en Docker:
+Reaplica el despliegue:
 
 ```powershell
-docker compose --env-file deploy/.env.deploy --profile ollama up -d --build
-```
-
-Con Gemini solamente (sin Ollama):
-
-```powershell
-docker compose --env-file deploy/.env.deploy up -d --build
+docker compose --env-file deploy/.env.deploy up -d
 ```
 
 Para levantar dashboard:
@@ -98,6 +145,8 @@ Si no tienes DNS, agrega entrada en `hosts` de tu cliente:
 - API RAG: `http://chatbot.lab.local/api`
 - Swagger: `http://chatbot.lab.local/api/docs`
 - Dashboard (si usas perfil `dashboard`): `http://chatbot.lab.local/dashboard/`
+
+Nota: `FRONTEND_IMAGE` debe definirse en `deploy/.env.deploy`. Si lo pones solo en `.env`, puedes tener resultados no esperados segun como ejecutes `docker compose`.
 
 ### 5. Persistencia
 
