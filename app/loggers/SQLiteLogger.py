@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from datetime import datetime
 from .BaseLogger import BaseLogger
 import json
@@ -8,11 +9,21 @@ class SQLiteLogger(BaseLogger):
 
     def __init__(self, db_path=None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent.parent / 'logs' / 'logs.db'
+            db_path = os.getenv("LOG_DB_PATH", "")
+            if db_path:
+                db_path = Path(db_path)
+            else:
+                db_path = Path(__file__).parent.parent.parent / "logs" / "logs.db"
+
+        db_path = Path(db_path)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
 
         # FastAPI puede ejecutar handlers en distintos hilos.
         # Esta opcion evita el error de "SQLite objects created in a thread...".
         self.conn = sqlite3.connect(str(db_path), check_same_thread=False)
+        journal_mode = os.getenv("SQLITE_JOURNAL_MODE", "").strip().upper()
+        if journal_mode:
+            self.conn.execute(f"PRAGMA journal_mode={journal_mode}")
         self._create_table()
 
     def _create_table(self):

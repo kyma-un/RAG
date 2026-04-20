@@ -7,7 +7,7 @@ import dotenv
 from fastapi import UploadFile
 
 from app.loggers.BaseLogger import BaseLogger
-from app.models.LLMFactory import get_llm
+from app.Models.LLMFactory import get_llm
 from rag.core import FaissVectorStore, SentenceTransformerEmbedder, TextChunker
 from rag.core.document import Document
 from rag.pipeline.ingestion import IngestionPipeline

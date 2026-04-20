@@ -1,17 +1,24 @@
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 from typing import List, Optional
+import os
 
 from fastapi.middleware.cors import CORSMiddleware
 
 from .rag import RAG
 from .loggers.SQLiteLogger import SQLiteLogger
 
-app = FastAPI()
+
+def _parse_origins() -> List[str]:
+    configured = os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:4200")
+    return [origin.strip() for origin in configured.split(",") if origin.strip()]
+
+
+app = FastAPI(root_path=os.getenv("API_ROOT_PATH", ""))
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],
+    allow_origins=_parse_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

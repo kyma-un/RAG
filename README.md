@@ -16,6 +16,87 @@ Sistema RAG (Retrieval-Augmented Generation) para consultar documentos PDF, con:
 - Streamlit (dashboard)
 - LLM configurable: Ollama o Gemini
 
+## Despliegue con Docker Compose
+
+Este repositorio ahora incluye artefactos para despliegue en servidor local:
+
+- [Dockerfile](Dockerfile): imagen del backend FastAPI.
+- [docker-compose.yml](docker-compose.yml): orquesta backend, proxy, frontend (imagen externa), dashboard opcional y Ollama opcional.
+- [deploy/Caddyfile](deploy/Caddyfile): reverse proxy para usar un solo dominio.
+- [requirements.txt](requirements.txt): dependencias Python reproducibles para build.
+
+### Arquitectura recomendada
+
+- Frontend y backend en contenedores separados.
+- Un solo dominio con rutas:
+  - `/` -> frontend
+  - `/api` -> backend RAG
+- Exponer al host solo `80/443` (proxy).
+- Persistir volúmenes de `vector_store`, `logs` y `files`.
+
+### 1. Preparar variables
+
+1. Copia [.env.example](.env.example) a `.env`.
+2. Ajusta como mínimo:
+
+```env
+LLM_PROVIDER=ollama
+LLM_FALLBACK_PROVIDER=gemini
+GEMINI_API_KEY=tu_api_key
+API_ROOT_PATH=/api
+CORS_ALLOW_ORIGINS=http://chatbot.lab.local,https://chatbot.lab.local
+```
+
+3. Copia [deploy/.env.deploy.example](deploy/.env.deploy.example) a `deploy/.env.deploy` (o exporta variables en shell).
+4. Ajusta `DOMAIN` y `FRONTEND_IMAGE` (imagen de tu repo de frontend).
+
+### 2. Levantar stack
+
+Con Ollama local en Docker:
+
+```powershell
+docker compose --env-file deploy/.env.deploy --profile ollama up -d --build
+```
+
+Con Gemini solamente (sin Ollama):
+
+```powershell
+docker compose --env-file deploy/.env.deploy up -d --build
+```
+
+Para levantar dashboard:
+
+```powershell
+docker compose --env-file deploy/.env.deploy --profile dashboard up -d
+```
+
+### 3. DNS local
+
+Si tienes DNS interno, crea un registro A para `chatbot.lab.local` apuntando a la IP del servidor.
+
+Si no tienes DNS, agrega entrada en `hosts` de tu cliente:
+
+```text
+192.168.1.50 chatbot.lab.local
+```
+
+### 4. Acceso
+
+- Frontend: `http://chatbot.lab.local/`
+- API RAG: `http://chatbot.lab.local/api`
+- Swagger: `http://chatbot.lab.local/api/docs`
+
+### 5. Persistencia
+
+Docker Compose crea estos volúmenes:
+
+- `rag_vector_store`
+- `rag_logs`
+- `rag_files`
+- `ollama_data` (si usas perfil `ollama`)
+
+Al reiniciar contenedores, se conserva índice FAISS, logs y documentos.
+
 ## Estructura
 
 ```text

@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+langchain-community
+langchain-core
+langchain-text-splitters
+faiss-cpu
+sentence-transformers
+python-dotenv
+google-genai
+ollama
+pypdf
+streamlit
+pandas
+matplotlib
+wordcloud

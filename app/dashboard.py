@@ -3,15 +3,30 @@ import pandas as pd
 import sqlite3
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
+from pathlib import Path
+import os
 
 # 1️⃣ Conexión a la DB
-conn = sqlite3.connect("./logs/logs.db")
-df = pd.read_sql_query("SELECT * FROM logs", conn)
-df["timestamp"] = pd.to_datetime(df["timestamp"])
-df["date"] = df["timestamp"].dt.date
-
+db_path = Path(os.getenv("LOG_DB_PATH", "./logs/logs.db"))
 st.set_page_config(page_title="RAG Dashboard", layout="wide")
 st.title("📊 RAG Dashboard Avanzado")
+
+if not db_path.exists():
+	st.info(f"No existe la base de logs en: {db_path}. Ejecuta consultas en la API para poblarla.")
+	st.stop()
+
+conn = sqlite3.connect(str(db_path))
+try:
+	df = pd.read_sql_query("SELECT * FROM logs", conn)
+finally:
+	conn.close()
+
+if df.empty:
+	st.info("La tabla logs está vacía. Realiza consultas para ver métricas.")
+	st.stop()
+
+df["timestamp"] = pd.to_datetime(df["timestamp"])
+df["date"] = df["timestamp"].dt.date
 
 # 2️⃣ Métricas generales
 st.header("📈 Métricas generales")
