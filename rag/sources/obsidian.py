@@ -1,29 +1,161 @@
+import os
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timezone
+import re
 
 from rag.core.datasource import DataSource
 from rag.core.document import Document
 
+# Importar yaml solo si está disponible (mejor práctica)
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
 
 class ObsidianSource(DataSource):
-    """Placeholder de Obsidian mientras se define la logica final de carga."""
+    """Carga notas desde un vault de Obsidian."""
 
     def __init__(
         self,
         vault_dir: str,
         encoding: str = "utf-8",
+        extract_frontmatter: bool = True,
+        extract_tags: bool = True,
+        extract_links: bool = True,
         logger: Optional[logging.Logger] = None,
     ):
         self.vault_dir = vault_dir
         self.encoding = encoding
+        self.extract_frontmatter = extract_frontmatter
+        self.extract_tags = extract_tags
+        self.extract_links = extract_links
         self.logger = logger or logging.getLogger(__name__)
 
     def get_name(self) -> str:
         return "obsidian"
 
     def load_documents(self) -> List[Document]:
-        self.logger.info(
-            "ObsidianSource esta deshabilitado temporalmente. vault_dir=%s",
-            self.vault_dir,
-        )
-        return []
+        """Carga documentos desde el vault de Obsidian."""
+        # PASO 1: Inicializar lista vacía
+        documents: List[Document] = []
+
+        # PASO 2: Validar que vault_dir existe
+        if not os.path.isdir(self.vault_dir):
+            self.logger.warning("Vault dir no existe: %s", self.vault_dir)
+            return documents
+
+        # PASO 3: Recorrer recursivamente todos los archivos
+        for root, _, files in os.walk(self.vault_dir):
+            # PASO 3.1: Filtrar solo archivos .md
+            for file_name in sorted(files):
+                if not file_name.lower().endswith(".md"):
+                    continue
+
+                # PASO 3.2: Construir rutas del archivo
+                file_path = os.path.join(root, file_name)
+                rel_path = os.path.relpath(file_path, self.vault_dir)
+                abs_path = os.path.abspath(file_path)
+
+                # PASO 3.3: Intentar cargar el archivo
+                try:
+                    doc = self._load_single_file(abs_path, file_name, rel_path)
+                    if doc:  # Solo agregar si el documento es válido
+                        documents.append(doc)
+                except Exception as exc:
+                    self.logger.warning("Omite archivo %s: %s", file_path, exc)
+                    continue  # Continuar con siguiente archivo
+
+        self.logger.info("Cargados %d documentos desde Obsidian", len(documents))
+        return documents
+
+    def _load_single_file(
+        self,
+        abs_path: str,
+        file_name: str,
+        rel_path: str
+    ) -> Optional[Document]:
+        """Carga un archivo .md individual."""
+
+        # PASO 4.1: Leer archivo
+        with open(abs_path, "r", encoding=self.encoding) as f:
+            content = f.read()
+
+        if not content.strip():  # Archivo vacío
+            return None
+
+        # PASO 4.2: Parsear frontmatter YAML
+        frontmatter = {}
+        text_content = content
+        if content.startswith("---"):  # Frontmatter está al inicio
+            try:
+                # Dividir por separador "---"
+                parts = content.split("---", 2)  # máximo 2 divisiones
+                if len(parts) >= 3:
+                    # parts[0] = "", parts[1] = yaml, parts[2] = contenido
+                    frontmatter = yaml.safe_load(parts[1]) or {}
+                    text_content = parts[2].strip()
+            except Exception as exc:
+                self.logger.warning("Frontmatter inválido en %s: %s", file_name, exc)
+                # No fallar, solo ignorar frontmatter
+
+        # PASO 4.3: Extraer metadata del contenido
+        tags = self._extract_tags(content) if self.extract_tags else []
+        wikilinks = self._extract_wikilinks(content) if self.extract_links else []
+
+        # PASO 4.4: Información del archivo
+        stat = os.stat(abs_path)
+        uploaded_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        doc_id = f"obsidian:{abs_path}"
+
+        # PASO 4.5: Construir metadata del documento
+        metadata = {
+            # Identificadores
+            "id": doc_id,
+            "source": "obsidian",
+
+            # Ubicación
+            "file_name": file_name,
+            "filename": file_name,  # Algunos endpoints esperan "filename"
+            "path": abs_path,
+            "relative_path": rel_path,
+            "vault_path": os.path.dirname(rel_path),  # Para filtrar por carpeta
+
+            # Metadatos de archivo
+            "size": stat.st_size,
+            "uploadedAt": uploaded_at,
+            "status": "indexed",
+        }
+
+        # PASO 4.6: Agregar frontmatter si existe
+        if frontmatter:
+            metadata["frontmatter"] = frontmatter
+            # Extraer proyecto si está en frontmatter (KYMA)
+            if isinstance(frontmatter, dict) and "project" in frontmatter:
+                metadata["project"] = frontmatter["project"]
+
+        # PASO 4.7: Agregar tags y wikilinks si existen
+        if tags:
+            metadata["tags"] = tags
+        if wikilinks:
+            metadata["wikilinks"] = wikilinks
+
+        # PASO 4.8: Retornar Document
+        return Document(content=text_content, metadata=metadata)
+
+    def _extract_tags(self, content: str) -> List[str]:
+        """Extrae hashtags (#tag) del contenido."""
+        # Patrón regex: # seguido de caracteres alfanuméricos y guiones
+        pattern = r"#[\w\-]+"
+        matches = re.findall(pattern, content)
+        # Remover # y normalizar a minúsculas
+        return list(set(tag[1:].lower() for tag in matches))
+
+    def _extract_wikilinks(self, content: str) -> List[str]:
+        """Extrae wikilinks ([[...]]) del contenido."""
+        # Patrón regex: [[...]] con cualquier contenido
+        pattern = r"\[\[([^\]]+)\]\]"
+        matches = re.findall(pattern, content)
+        # Devolver lista única (sin duplicados)
+        return list(set(matches))
